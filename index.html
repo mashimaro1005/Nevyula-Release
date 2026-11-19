@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nevyula — Windows のファイルマネージャー</title>
+<meta name="description" content="Nevyula は Windows 向けの無料のファイルマネージャーです。">
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Sora:wght@300;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07060f;
+    --bg-2: #0e0c1f;
+    --panel: rgba(255, 255, 255, 0.04);
+    --border: rgba(255, 255, 255, 0.09);
+    --fg: #ecebf5;
+    --fg-dim: #a3a1bd;
+    --pink: #ff6ad5;
+    --violet: #a46bff;
+    --blue: #5b8cff;
+    --grad: linear-gradient(120deg, var(--pink), var(--violet) 50%, var(--blue));
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Noto Sans JP", system-ui, sans-serif;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: inherit; }
+  img { max-width: 100%; height: auto; display: block; }
+
+  /* 星空と星雲の背景 */
+  .sky {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(60vw 40vw at 15% 10%, rgba(255, 106, 213, 0.16), transparent 60%),
+      radial-gradient(55vw 45vw at 85% 20%, rgba(91, 140, 255, 0.16), transparent 60%),
+      radial-gradient(50vw 40vw at 50% 90%, rgba(164, 107, 255, 0.12), transparent 60%),
+      var(--bg);
+  }
+  .sky::before, .sky::after {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, #fff8, transparent),
+      radial-gradient(1px 1px at 30% 70%, #fff6, transparent),
+      radial-gradient(1.5px 1.5px at 55% 35%, #fff9, transparent),
+      radial-gradient(1px 1px at 75% 80%, #fff5, transparent),
+      radial-gradient(1px 1px at 90% 10%, #fff7, transparent),
+      radial-gradient(1.5px 1.5px at 40% 50%, #fff6, transparent),
+      radial-gradient(1px 1px at 65% 60%, #fff5, transparent),
+      radial-gradient(1px 1px at 20% 90%, #fff6, transparent);
+    background-size: 420px 420px;
+  }
+  .sky::after { background-size: 650px 650px; background-position: 120px 200px; opacity: 0.7; }
+
+  .wrap { width: min(1080px, 100% - 32px); margin-inline: auto; }
+
+  /* 上の帯 */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    backdrop-filter: blur(12px);
+    background: rgba(7, 6, 15, 0.6);
+    border-bottom: 1px solid var(--border);
+  }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: "Sora", sans-serif; font-weight: 600; letter-spacing: 0.06em; text-decoration: none; }
+  .brand img { width: 30px; height: 30px; border-radius: 50%; }
+  nav { display: flex; gap: 22px; font-size: 14px; }
+  nav a { color: var(--fg-dim); text-decoration: none; }
+  nav a:hover { color: var(--fg); }
+
+  /* 表紙 */
+  .hero { text-align: center; padding: 96px 0 64px; }
+  .hero .logo {
+    width: 160px; height: 160px; margin: 0 auto 28px; border-radius: 50%;
+    box-shadow: 0 0 60px rgba(164, 107, 255, 0.5), 0 0 140px rgba(255, 106, 213, 0.22);
+  }
+  .hero h1 {
+    margin: 0; padding-bottom: 0.12em;
+    font-family: "Sora", sans-serif; font-weight: 300;
+    font-size: clamp(44px, 9vw, 88px); line-height: 1.25; letter-spacing: 0.08em;
+    background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p.lead { margin: 18px auto 0; max-width: 560px; font-size: clamp(16px, 2.4vw, 19px); color: var(--fg-dim); }
+  .cta { display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; margin-top: 36px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 13px 26px; border-radius: 999px; font-weight: 700; text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn.primary { background: var(--grad); color: #fff; box-shadow: 0 8px 30px rgba(164, 107, 255, 0.4); }
+  .btn.ghost { border: 1px solid var(--border); background: var(--panel); }
+  .meta { margin-top: 16px; font-size: 13px; color: var(--fg-dim); }
+
+  /* スクリーンショット */
+  .shot {
+    border-radius: var(--radius); border: 1px solid var(--border);
+    background: var(--bg-2); overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(164, 107, 255, 0.08);
+  }
+  .shot.placeholder {
+    aspect-ratio: 16 / 10; display: grid; place-items: center;
+    color: var(--fg-dim); font-size: 14px;
+    background:
+      linear-gradient(var(--bg-2), var(--bg-2)) padding-box,
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.025) 0 12px, transparent 12px 24px);
+  }
+  .hero-shot { margin-top: 64px; }
+
+  section { padding: 80px 0; }
+  h2 { font-size: clamp(26px, 4vw, 34px); margin: 0 0 10px; text-align: center; }
+  .sub { text-align: center; color: var(--fg-dim); margin: 0 0 44px; }
+
+  /* 特徴 */
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; }
+  .card .ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .card {
+    padding: 24px; border-radius: var(--radius);
+    background: var(--panel); border: 1px solid var(--border);
+  }
+  .card .ico {
+    width: 40px; height: 40px; border-radius: 10px; margin-bottom: 14px;
+    display: grid; place-items: center; background: var(--grad); color: #fff;
+  }
+  .card h3 { margin: 0 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--fg-dim); font-size: 14.5px; }
+
+  /* 画面の紹介（左右交互） */
+  .tour { display: grid; gap: 72px; }
+  .tour-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 40px; align-items: center; }
+  .tour-row:nth-child(even) { grid-template-columns: 1fr 1.4fr; }
+  .tour-row:nth-child(even) .shot { order: 2; }
+  .tour-row h3 { margin: 0 0 10px; font-size: 22px; }
+  .tour-row p { margin: 0; color: var(--fg-dim); }
+
+  /* ダウンロード */
+  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+  .dl .card { display: flex; flex-direction: column; gap: 12px; }
+  .dl .card p { flex: 1; }
+  .dl .btn { align-self: flex-start; }
+  .req { margin-top: 28px; text-align: center; font-size: 14px; color: var(--fg-dim); }
+
+  footer { border-top: 1px solid var(--border); padding: 28px 0 40px; font-size: 13px; color: var(--fg-dim); }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 18px; justify-content: space-between; }
+  footer a { color: var(--fg-dim); }
+
+  /* クリックしたときの原寸の表示 */
+  img.shot { cursor: zoom-in; }
+  .zoom.on { pointer-events: auto; cursor: zoom-out; }
+  .zoom {
+    position: fixed; inset: 0; z-index: 50; pointer-events: none;
+    display: grid; place-items: center;
+    background: rgba(4, 3, 10, 0.72);
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .zoom.on { opacity: 1; }
+  .zoom img {
+    width: auto; height: auto;
+    max-width: calc(100vw - 32px); max-height: calc(100vh - 32px);
+    border-radius: 10px; border: 1px solid var(--border);
+    box-shadow: 0 30px 100px rgba(0, 0, 0, 0.8);
+  }
+
+  @media (max-width: 720px) {
+    nav { display: none; }
+    .hero { padding-top: 64px; }
+    .tour-row, .tour-row:nth-child(even) { grid-template-columns: 1fr; gap: 20px; }
+    .tour-row:nth-child(even) .shot { order: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="sky"></div>
+
+<header>
+  <div class="wrap">
+    <a class="brand" href="#"><img src="assets/icon.png" alt="">Nevyula</a>
+    <nav>
+      <a href="#features">特徴</a>
+      <a href="#tour">画面</a>
+      <a href="#download">ダウンロード</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <img class="logo" src="assets/icon.png" alt="Nevyula のアイコン">
+    <h1>Nevyula</h1>
+    <p class="lead">タブで行き来し、すばやく探せる。<br>Windows のための、無料のファイルマネージャー。</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/mashimaro1005/Nevyula-Release/releases/latest">ダウンロード</a>
+      <a class="btn ghost" href="#features">特徴を見る</a>
+    </div>
+    <p class="meta">バージョン 0.1.0 ・ Windows 10 / 11（64 ビット）</p>
+
+    <img class="shot hero-shot" src="screenshot/sc_main.png" width="1602" height="1002" alt="Nevyula のメイン画面。4 つのペインにフォルダーを並べている">
+
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>特徴</h2>
+      <p class="sub">毎日のファイル操作を、軽く、迷わずに。</p>
+      <div class="features">
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M7 4v5"/></svg></div>
+          <h3>デザイン</h3>
+          <p>Chromium のブラウザーを意識した、使い慣れたデザイン。</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg></div>
+          <h3>タブグループ＆タブ</h3>
+          <p>作業内容ごとに、ワークスペースとしてタブグループを用意。タブグループごとに、最大 4 つのペインの中に複数のタブを保持できます。</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div>
+          <h3>プレビュー</h3>
+          <p>拡張子ごとの専用のソフトを介さずに、中身をプレビューできます。</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8 8"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></div>
+          <h3>アプリ</h3>
+          <p>ブラウザーの拡張機能のように呼び出せる、アプリケーションランチャーを用意。Nevyula から開くとき専用の、既定のアプリも設定できます。</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></div>
+          <h3>通知</h3>
+          <p>コピー・移動・削除などの操作に、進捗の表示つきのトースト通知を表示します。</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+          <h3>検索</h3>
+          <p>インデックスを利用した、高速なファイル・フォルダーの検索。</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M9 15l6-6"/><path d="M11 6l1.5-1.5a5 5 0 0 1 7 7L18 13"/><path d="M13 18l-1.5 1.5a5 5 0 0 1-7-7L6 11"/></svg></div>
+          <h3>連携</h3>
+          <p>7-Zip・Everything を利用している方は、Nevyula から使えます。</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></div>
+          <h3>設定</h3>
+          <p>かゆいところに手が届く機能を網羅しています。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tour">
+    <div class="wrap">
+      <h2>画面</h2>
+      <p class="sub">主な画面を紹介します。</p>
+      <div class="tour">
+        <div class="tour-row">
+          <img class="shot" src="screenshot/sc_search.png" width="1602" height="1002" loading="lazy" alt="検索の画面。候補の一覧と画像のプレビュー">
+          <div>
+            <h3>検索</h3>
+            <p>名前の一部を打つだけで、ドライブ全体から候補を絞り込みます。</p>
+          </div>
+        </div>
+        <div class="tour-row">
+          <img class="shot" src="screenshot/sc_preview.png" width="1602" height="1002" loading="lazy" alt="画像のプレビュー">
+          <div>
+            <h3>プレビュー</h3>
+            <p>専用のソフトを開かずに、画像や動画、文書の中身を確かめられます。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="download">
+    <div class="wrap">
+      <h2>ダウンロード</h2>
+      <p class="sub">どちらも無料です。使う前に <a href="LICENSE.txt">使用許諾契約書</a> をお読みください。</p>
+      <div class="dl">
+        <div class="card">
+          <h3>インストーラー版</h3>
+          <p>スタートメニューへの登録とアンインストーラーが付きます。ふだん使いにはこちら。</p>
+          <a class="btn primary" href="https://github.com/mashimaro1005/Nevyula-Release/releases/latest">インストーラーを入手</a>
+        </div>
+        <div class="card">
+          <h3>ポータブル版</h3>
+          <p>zip を展開して、そのまま起動できます。設定は同じフォルダーに保存されます。</p>
+          <a class="btn ghost" href="https://github.com/mashimaro1005/Nevyula-Release/releases/latest">zip を入手</a>
+        </div>
+      </div>
+      <p class="req">動作環境: Windows 10 / 11（64 ビット）・Microsoft Edge WebView2 ランタイム</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 mashimaro1005</span>
+    <span>
+      <a href="LICENSE.txt">使用許諾契約書</a> ・
+      <a href="THIRD-PARTY-NOTICES.txt">第三者のライセンス</a> ・
+      <a href="https://github.com/mashimaro1005/Nevyula-Release/releases">すべての版</a>
+    </span>
+  </div>
+</footer>
+
+<div class="zoom" aria-hidden="true"><img alt=""></div>
+<script>
+  // スクリーンショットをクリックすると、原寸で重ねて出す（画面に収まらなければ収まる大きさ）。
+  // もう一度どこかをクリックするか、Esc・スクロールで戻す。
+  (() => {
+    const zoom = document.querySelector(".zoom");
+    const big = zoom.querySelector("img");
+    const show = (img) => {
+      big.src = img.currentSrc || img.src;
+      big.alt = img.alt;
+      zoom.classList.add("on");
+    };
+    const hide = () => zoom.classList.remove("on");
+    for (const img of document.querySelectorAll("img.shot")) {
+      img.addEventListener("click", () => show(img));
+    }
+    zoom.addEventListener("click", hide);
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") hide();
+    });
+    window.addEventListener("scroll", hide, { passive: true });
+  })();
+</script>
+</body>
+</html>
